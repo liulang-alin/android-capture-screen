@@ -15,6 +15,12 @@
  */
 package net.yrom.screenrecorder;
 
+import static android.Manifest.permission.RECORD_AUDIO;
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+import static android.os.Build.VERSION_CODES.M;
+import static net.yrom.screenrecorder.ScreenRecorder.AUDIO_AAC;
+import static net.yrom.screenrecorder.ScreenRecorder.VIDEO_AVC;
+
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -60,13 +66,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import static android.Manifest.permission.RECORD_AUDIO;
-import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
-import static android.os.Build.VERSION_CODES.M;
-import static net.yrom.screenrecorder.ScreenRecorder.AUDIO_AAC;
-import static net.yrom.screenrecorder.ScreenRecorder.VIDEO_AVC;
-
 public class MainActivity extends Activity {
+    private static final String TAG = "MainActivity";
+
     private static final int REQUEST_MEDIA_PROJECTION = 1;
     private static final int REQUEST_PERMISSIONS = 2;
     // members below will be initialized in onCreate()
@@ -148,7 +150,7 @@ public class MainActivity extends Activity {
 
             MediaProjection mediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
             if (mediaProjection == null) {
-                Log.e("@@", "media projection is null");
+                Log.e(TAG, "media projection is null");
                 return;
             }
 
@@ -174,7 +176,7 @@ public class MainActivity extends Activity {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US);
         final File file = new File(dir, "Screenshots-" + format.format(new Date())
                 + "-" + video.width + "x" + video.height + ".mp4");
-        Log.d("@@", "Create recorder with :" + video + " \n " + audio + "\n " + file);
+        Log.d(TAG, "Create recorder with :" + video + " \n " + audio + "\n " + file);
         mRecorder = newRecorder(mediaProjection, video, audio, file);
         if (hasPermissions()) {
             startRecorder();
@@ -461,7 +463,7 @@ public class MainActivity extends Activity {
             mVieoResolution.setSelectedPosition(resetPos);
             toast(getString(R.string.codec_unsupported_size),
                     codecName, width, height, mOrientation.getSelectedItem());
-            Log.w("@@", codecName +
+            Log.w(TAG, codecName +
                     " height range: " + videoCapabilities.getSupportedHeights() +
                     "\n width range: " + videoCapabilities.getSupportedHeights());
         } else if (!videoCapabilities.areSizeAndRateSupported(width, height, selectedFramerate)) {
@@ -483,7 +485,7 @@ public class MainActivity extends Activity {
         if (!videoCapabilities.getBitrateRange().contains(selectedBitrate)) {
             mVideoBitrate.setSelectedPosition(resetPos);
             toast(getString(R.string.codec_unsupported_bitrate), codecName, selectedBitrate);
-            Log.w("@@", codecName +
+            Log.w(TAG, codecName +
                     " bitrate range: " + videoCapabilities.getBitrateRange());
         }
     }
@@ -830,7 +832,7 @@ public class MainActivity extends Activity {
                         .append("\n Bit Rates: ").append(audioCaps.getBitrateRange())
                         .append("\n Max channels: ").append(audioCaps.getMaxInputChannelCount());
             }
-            Log.i("@@@", builder.toString());
+            Log.i(TAG, builder.toString());
         }
     }
 

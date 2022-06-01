@@ -16,7 +16,14 @@
 
 package net.yrom.screenrecorder;
 
+import static android.media.MediaFormat.MIMETYPE_AUDIO_AAC;
+import static android.media.MediaFormat.MIMETYPE_VIDEO_AVC;
+
+import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
 import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
@@ -27,13 +34,13 @@ import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static android.media.MediaFormat.MIMETYPE_AUDIO_AAC;
-import static android.media.MediaFormat.MIMETYPE_VIDEO_AVC;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Yrom
@@ -65,6 +72,9 @@ public class ScreenRecorder {
     private LinkedList<Integer> mPendingAudioEncoderBufferIndices = new LinkedList<>();
     private LinkedList<MediaCodec.BufferInfo> mPendingAudioEncoderBufferInfos = new LinkedList<>();
     private LinkedList<MediaCodec.BufferInfo> mPendingVideoEncoderBufferInfos = new LinkedList<>();
+
+
+    private AtomicInteger mImageCount = new AtomicInteger(0);
 
     /**
      * @param display for {@link VirtualDisplay#setSurface(Surface)}
@@ -177,6 +187,11 @@ public class ScreenRecorder {
         }
         mIsRunning.set(true);
 
+        // recordVideo();
+        recordImage();
+    }
+
+    private void recordVideo() {
         try {
             // create muxer
             mMuxer = new MediaMuxer(mDstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
@@ -189,7 +204,59 @@ public class ScreenRecorder {
 
         // "turn on" VirtualDisplay after VideoEncoder prepared
         mVirtualDisplay.setSurface(mVideoEncoder.getInputSurface());
-        if (VERBOSE) Log.d(TAG, "set surface to display: " + mVirtualDisplay.getDisplay());
+        if (VERBOSE) {
+            Log.d(TAG, "set surface to display: " + mVirtualDisplay.getDisplay());
+        }
+    }
+
+    private void recordImage() {
+        ImageReader reader = ImageReader.newInstance(720, 1280, PixelFormat.RGBA_8888, 4);
+        mVirtualDisplay.setSurface(reader.getSurface());
+        reader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+            @Override
+            public void onImageAvailable(ImageReader reader) {
+                Log.d(TAG, "saveImage begin");
+                saveImage(reader);
+            }
+        }, null);
+    }
+
+    private void saveImage(ImageReader reader) {
+        Executors.newSingleThreadExecutor().submit(() -> {
+            Image image = reader.acquireLatestImage();
+            if (image != null) {
+                String path = "/sdcard/" + System.currentTimeMillis() + ".jpg";
+                try {
+                    saveImage(image, path);
+                } catch (Exception e) {
+                    Log.d(TAG, "saveImage exception:" + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void saveImage(Image image, String path) throws Exception {
+        int width = 720;
+        int height = 1280;
+        Image.Plane[] planes = image.getPlanes();
+        ByteBuffer buffer = planes[0].getBuffer();
+        int pixelStride = planes[0].getPixelStride();
+        int rowStride = planes[0].getRowStride();
+        int rowPadding = rowStride - pixelStride * width;
+        Bitmap bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
+        bitmap.copyPixelsFromBuffer(buffer);
+
+        FileOutputStream fos = new FileOutputStream(path);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+        fos.flush();
+        fos.close();
+
+        Log.d(TAG, "saveImage success:" + path);
+        mImageCount.incrementAndGet();
+
+        if (mImageCount.get() >= 10) {
+            quit();
+        }
     }
 
     private void muxVideo(int index, MediaCodec.BufferInfo buffer) {
