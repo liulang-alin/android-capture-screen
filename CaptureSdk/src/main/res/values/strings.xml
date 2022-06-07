@@ -34,5 +34,5 @@
     <string name="cancel">取消</string>
     <string name="stop">停止</string>
     <string name="ok">好的</string>
-    <string name="create_screenRecorder_failure">启动录屏失败</string>
+    <string name="create_screenRecorder_failure">Create ScreenRecorder failure</string>
 </resources>

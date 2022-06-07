@@ -18,8 +18,7 @@ package net.yrom.screenrecorder;
 import static android.Manifest.permission.RECORD_AUDIO;
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 import static android.os.Build.VERSION_CODES.M;
-import static net.yrom.screenrecorder.ScreenRecorder.AUDIO_AAC;
-import static net.yrom.screenrecorder.ScreenRecorder.VIDEO_AVC;
+import static com.mzp.capturesdk.ScreenRecorder.VIDEO_AVC;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -55,6 +54,13 @@ import android.widget.Button;
 import android.widget.SpinnerAdapter;
 import android.widget.Toast;
 import android.widget.ToggleButton;
+
+import com.mzp.capturesdk.AudioEncodeConfig;
+import com.mzp.capturesdk.Constants;
+import com.mzp.capturesdk.Notifications;
+import com.mzp.capturesdk.ScreenRecorder;
+import com.mzp.capturesdk.Utils;
+import com.mzp.capturesdk.VideoEncodeConfig;
 
 import net.yrom.screenrecorder.view.NamedSpinner;
 
@@ -116,8 +122,8 @@ public class MainActivity extends Activity {
             restoreSelections(mVideoCodec, mVieoResolution, mVideoFramerate, mIFrameInterval, mVideoBitrate);
 
         });
-        Utils.findEncodersByTypeAsync(AUDIO_AAC, infos -> {
-            logCodecInfos(infos, AUDIO_AAC);
+        Utils.findEncodersByTypeAsync(ScreenRecorder.AUDIO_AAC, infos -> {
+            logCodecInfos(infos, ScreenRecorder.AUDIO_AAC);
             mAacCodecInfos = infos;
             SpinnerAdapter codecsAdapter = createCodecsAdapter(mAacCodecInfos);
             mAudioCodec.setAdapter(codecsAdapter);
@@ -262,7 +268,7 @@ public class MainActivity extends Activity {
         int channelCount = getSelectedAudioChannelCount();
         int profile = getSelectedAudioProfile();
 
-        return new AudioEncodeConfig(codec, AUDIO_AAC, bitrate, samplerate, channelCount, profile);
+        return new AudioEncodeConfig(codec, ScreenRecorder.AUDIO_AAC, bitrate, samplerate, channelCount, profile);
     }
 
     private VideoEncodeConfig createVideoConfig() {
@@ -281,7 +287,7 @@ public class MainActivity extends Activity {
         int bitrate = getSelectedVideoBitrate();
         MediaCodecInfo.CodecProfileLevel profileLevel = getSelectedProfileLevel();
         return new VideoEncodeConfig(width, height, bitrate,
-                framerate, iframe, codec, VIDEO_AVC, profileLevel);
+                framerate, iframe, codec, ScreenRecorder.VIDEO_AVC, profileLevel);
     }
 
     private static File getSavingDir() {
@@ -390,7 +396,7 @@ public class MainActivity extends Activity {
         if (mRecorder == null) return;
         mRecorder.start();
         mButton.setText(getString(R.string.stop_recorder));
-        registerReceiver(mStopActionReceiver, new IntentFilter(ACTION_STOP));
+        registerReceiver(mStopActionReceiver, new IntentFilter(Constants.ACTION_STOP));
         moveTaskToBack(true);
     }
 
@@ -430,9 +436,9 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setMessage(getString(R.string.using_your_mic_to_record_audio))
                 .setCancelable(false)
-                .setPositiveButton(android.R.string.ok, (dialog, which) ->
+                .setPositiveButton(R.string.ok, (dialog, which) ->
                         requestPermissions(permissions, REQUEST_PERMISSIONS))
-                .setNegativeButton(android.R.string.cancel, null)
+                .setNegativeButton(R.string.cancel, null)
                 .create()
                 .show();
     }
@@ -587,7 +593,7 @@ public class MainActivity extends Activity {
             mAudioBitrate.setAdapter(null);
             return;
         }
-        MediaCodecInfo.CodecCapabilities capabilities = codec.getCapabilitiesForType(AUDIO_AAC);
+        MediaCodecInfo.CodecCapabilities capabilities = codec.getCapabilitiesForType(ScreenRecorder.AUDIO_AAC);
 
         resetAudioBitrateAdapter(capabilities);
         resetSampleRateAdapter(capabilities);
@@ -687,7 +693,7 @@ public class MainActivity extends Activity {
     private MediaCodecInfo getAudioCodecInfo(String codecName) {
         if (codecName == null) return null;
         if (mAacCodecInfos == null) {
-            mAacCodecInfos = Utils.findEncodersByType(AUDIO_AAC);
+            mAacCodecInfos = Utils.findEncodersByType(ScreenRecorder.AUDIO_AAC);
         }
         MediaCodecInfo codec = null;
         for (int i = 0; i < mAacCodecInfos.length; i++) {
@@ -910,12 +916,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    static final String ACTION_STOP = BuildConfig.APPLICATION_ID + ".action.STOP";
-
     private BroadcastReceiver mStopActionReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (ACTION_STOP.equals(intent.getAction())) {
+            if (Constants.ACTION_STOP.equals(intent.getAction())) {
                 stopRecordingAndOpenFile(context);
             }
         }

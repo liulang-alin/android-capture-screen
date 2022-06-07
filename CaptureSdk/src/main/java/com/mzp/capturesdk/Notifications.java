@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package net.yrom.screenrecorder;
+package com.mzp.capturesdk;
+
+import static android.os.Build.VERSION_CODES.O;
 
 import android.annotation.TargetApi;
 import android.app.Notification;
@@ -28,14 +30,11 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.text.format.DateUtils;
 
-import static android.os.Build.VERSION_CODES.O;
-import static net.yrom.screenrecorder.MainActivity.ACTION_STOP;
-
 /**
  * @author yrom
  * @version 2017/12/1
  */
-class Notifications extends ContextWrapper {
+public class Notifications extends ContextWrapper {
     private static final int id = 0x1fff;
     private static final String CHANNEL_ID = "Recording";
     private static final String CHANNEL_NAME = "Screen Recorder Notifications";
@@ -45,7 +44,7 @@ class Notifications extends ContextWrapper {
     private Notification.Action mStopAction;
     private Notification.Builder mBuilder;
 
-    Notifications(Context context) {
+    public Notifications(Context context) {
         super(context);
         if (Build.VERSION.SDK_INT >= O) {
             createNotificationChannel();
@@ -57,7 +56,7 @@ class Notifications extends ContextWrapper {
             return;
         }
         Notification notification = getBuilder()
-                .setContentText(getString(R.string.length_video)+" " + DateUtils.formatElapsedTime(timeMs / 1000))
+                .setContentText(getString(R.string.length_video) + " " + DateUtils.formatElapsedTime(timeMs / 1000))
                 .build();
         getNotificationManager().notify(id, notification);
         mLastFiredTime = SystemClock.elapsedRealtime();
@@ -92,7 +91,7 @@ class Notifications extends ContextWrapper {
 
     private Notification.Action stopAction() {
         if (mStopAction == null) {
-            Intent intent = new Intent(ACTION_STOP).setPackage(getPackageName());
+            Intent intent = new Intent(Constants.ACTION_STOP).setPackage(getPackageName());
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 1,
                     intent, PendingIntent.FLAG_ONE_SHOT);
             mStopAction = new Notification.Action(android.R.drawable.ic_media_pause, getString(R.string.stop), pendingIntent);
@@ -100,14 +99,14 @@ class Notifications extends ContextWrapper {
         return mStopAction;
     }
 
-    void clear() {
+    public void clear() {
         mLastFiredTime = 0;
         mBuilder = null;
         mStopAction = null;
         getNotificationManager().cancelAll();
     }
 
-    NotificationManager getNotificationManager() {
+    public NotificationManager getNotificationManager() {
         if (mManager == null) {
             mManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         }
