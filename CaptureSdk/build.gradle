@@ -1,6 +1,9 @@
-plugins {
-    id 'com.android.library'
-}
+apply plugin: 'com.android.library'
+apply plugin: 'maven-publish'
+
+def GROUP = "com.class100.screencapture"
+def ARTIFACT = "ScreenCapture"
+def VName = "0.0.1"
 
 android {
     compileSdkVersion 32
@@ -31,4 +34,16 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = GROUP
+                artifactId = ARTIFACT
+                version = VName
+            }
+        }
+    }
 }
