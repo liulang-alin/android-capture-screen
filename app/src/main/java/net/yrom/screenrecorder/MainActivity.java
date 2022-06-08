@@ -56,6 +56,7 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.mzp.capturesdk.AudioEncodeConfig;
+import com.mzp.capturesdk.CaptureImageConfig;
 import com.mzp.capturesdk.Constants;
 import com.mzp.capturesdk.Notifications;
 import com.mzp.capturesdk.ScreenRecorder;
@@ -183,7 +184,10 @@ public class MainActivity extends Activity {
         final File file = new File(dir, "Screenshots-" + format.format(new Date())
                 + "-" + video.width + "x" + video.height + ".mp4");
         Log.d(TAG, "Create recorder with :" + video + " \n " + audio + "\n " + file);
-        mRecorder = newRecorder(mediaProjection, video, audio, file);
+        Point size = new Point();
+        getWindowManager().getDefaultDisplay().getSize(size);
+        CaptureImageConfig config = new CaptureImageConfig(size.x / 2, size.y / 2);
+        mRecorder = newRecorder(mediaProjection, config);
         if (hasPermissions()) {
             startRecorder();
         } else {
@@ -240,7 +244,57 @@ public class MainActivity extends Activity {
     }
 
 
+    private ScreenRecorder newRecorder(MediaProjection mediaProjection, CaptureImageConfig config) {
+        final VirtualDisplay display = getOrCreateVirtualDisplay(mediaProjection, config);
+        ScreenRecorder r = new ScreenRecorder(config, display);
+        r.setCallback(new ScreenRecorder.Callback() {
+            long startTime = 0;
+
+            @Override
+            public void onStop(Throwable error) {
+                runOnUiThread(() -> stopRecorder());
+                if (error != null) {
+                    toast("Recorder error ! See logcat for more details");
+                } else {
+
+                }
+            }
+
+            @Override
+            public void onStart() {
+                mNotifications.recording(0);
+            }
+
+            @Override
+            public void onRecording(long presentationTimeUs) {
+                if (startTime <= 0) {
+                    startTime = presentationTimeUs;
+                }
+                long time = (presentationTimeUs - startTime) / 1000;
+                mNotifications.recording(time);
+            }
+        });
+        return r;
+    }
+
     private VirtualDisplay getOrCreateVirtualDisplay(MediaProjection mediaProjection, VideoEncodeConfig config) {
+        if (mVirtualDisplay == null) {
+            mVirtualDisplay = mediaProjection.createVirtualDisplay("ScreenRecorder-display0",
+                    config.width, config.height, 1 /*dpi*/,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
+                    null /*surface*/, null, null);
+        } else {
+            // resize if size not matched
+            Point size = new Point();
+            mVirtualDisplay.getDisplay().getSize(size);
+            if (size.x != config.width || size.y != config.height) {
+                mVirtualDisplay.resize(config.width, config.height, 1);
+            }
+        }
+        return mVirtualDisplay;
+    }
+
+    private VirtualDisplay getOrCreateVirtualDisplay(MediaProjection mediaProjection, CaptureImageConfig config) {
         if (mVirtualDisplay == null) {
             mVirtualDisplay = mediaProjection.createVirtualDisplay("ScreenRecorder-display0",
                     config.width, config.height, 1 /*dpi*/,
@@ -374,6 +428,15 @@ public class MainActivity extends Activity {
         mOrientation.setOnItemSelectedListener((view, position) -> {
             onOrientationChanged(position, view.getSelectedItem());
         });
+
+        findViewById(R.id.btn_capture).setOnClickListener(v -> {
+            if (mRecorder == null) {
+                Toast.makeText(v.getContext(), "Start Record first !", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            mRecorder.requestCapture();
+        });
     }
 
     private void onButtonClick(View v) {
@@ -397,7 +460,7 @@ public class MainActivity extends Activity {
         mRecorder.start();
         mButton.setText(getString(R.string.stop_recorder));
         registerReceiver(mStopActionReceiver, new IntentFilter(Constants.ACTION_STOP));
-        moveTaskToBack(true);
+        //   moveTaskToBack(true);
     }
 
     private void stopRecorder() {

@@ -36,11 +36,10 @@ import android.view.Surface;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Yrom
@@ -66,15 +65,15 @@ public class ScreenRecorder {
 
     private HandlerThread mWorker;
     private CallbackHandler mHandler;
+    private AtomicBoolean mSaveCaptureFile = new AtomicBoolean(false);
+
+    private CaptureImageConfig mImageConfig;
 
     private Callback mCallback;
     private LinkedList<Integer> mPendingVideoEncoderBufferIndices = new LinkedList<>();
     private LinkedList<Integer> mPendingAudioEncoderBufferIndices = new LinkedList<>();
     private LinkedList<MediaCodec.BufferInfo> mPendingAudioEncoderBufferInfos = new LinkedList<>();
     private LinkedList<MediaCodec.BufferInfo> mPendingVideoEncoderBufferInfos = new LinkedList<>();
-
-
-    private AtomicInteger mImageCount = new AtomicInteger(0);
 
     /**
      * @param display for {@link VirtualDisplay#setSurface(Surface)}
@@ -90,6 +89,11 @@ public class ScreenRecorder {
         mAudioEncoder = audio == null ? null : new MicRecorder(audio);
     }
 
+    public ScreenRecorder(CaptureImageConfig config, VirtualDisplay display) {
+        mImageConfig = config;
+        mVirtualDisplay = display;
+    }
+
     /**
      * stop task
      */
@@ -100,7 +104,6 @@ public class ScreenRecorder {
         } else {
             signalStop(false);
         }
-
     }
 
     public void start() {
@@ -109,6 +112,11 @@ public class ScreenRecorder {
         mWorker.start();
         mHandler = new CallbackHandler(mWorker.getLooper());
         mHandler.sendEmptyMessage(MSG_START);
+    }
+
+    public void requestCapture() {
+        mHandler.sendEmptyMessage(MSG_START);
+        mSaveCaptureFile.set(true);
     }
 
     public void setCallback(Callback callback) {
@@ -141,7 +149,9 @@ public class ScreenRecorder {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case MSG_START:
+                    Log.d(TAG, "handleMessage:MSG_START");
                     try {
+                        mSaveCaptureFile.set(true);
                         record();
                         if (mCallback != null) {
                             mCallback.onStart();
@@ -152,6 +162,7 @@ public class ScreenRecorder {
                     }
                 case MSG_STOP:
                 case MSG_ERROR:
+                    mSaveCaptureFile.set(false);
                     stopEncoders();
                     if (msg.arg1 != STOP_WITH_EOS) signalEndOfStream();
                     if (mCallback != null) {
@@ -179,9 +190,14 @@ public class ScreenRecorder {
     }
 
     private void record() {
+        Log.d(TAG, "record");
+
+        /*
         if (mIsRunning.get() || mForceQuit.get()) {
             throw new IllegalStateException();
         }
+        */
+
         if (mVirtualDisplay == null) {
             throw new IllegalStateException("maybe release");
         }
@@ -209,54 +225,70 @@ public class ScreenRecorder {
         }
     }
 
+    private void stopCapture(ImageReader reader) {
+        Log.d(TAG, "stopCapture");
+        mSaveCaptureFile.set(false);
+        if (reader != null) {
+//            reader.close();
+        }
+
+        Surface surface = mVirtualDisplay.getSurface();
+        if (surface != null) {
+            surface.release();
+        }
+    }
+
     private void recordImage() {
-        ImageReader reader = ImageReader.newInstance(720, 1280, PixelFormat.RGBA_8888, 4);
+        Log.d(TAG, "recordImage");
+        ImageReader reader = ImageReader.newInstance(mImageConfig.width, mImageConfig.height, PixelFormat.RGBA_8888, 2);
         mVirtualDisplay.setSurface(reader.getSurface());
-        reader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
-            @Override
-            public void onImageAvailable(ImageReader reader) {
-                Log.d(TAG, "saveImage begin");
-                saveImage(reader);
+        reader.setOnImageAvailableListener(reader1 -> {
+            Log.d(TAG, "image frame ready.");
+            if (mSaveCaptureFile.get()) {
+                Log.d(TAG, "saveImage begin.");
+                saveImage(reader1);
+                stopCapture(reader1);
             }
         }, null);
     }
 
     private void saveImage(ImageReader reader) {
-        Executors.newSingleThreadExecutor().submit(() -> {
-            Image image = reader.acquireLatestImage();
-            if (image != null) {
-                String path = "/sdcard/" + System.currentTimeMillis() + ".jpg";
-                try {
-                    saveImage(image, path);
-                } catch (Exception e) {
-                    Log.d(TAG, "saveImage exception:" + e.getMessage());
-                }
+        Image image = reader.acquireLatestImage();
+        if (image != null) {
+            String path = "/sdcard/" + System.currentTimeMillis() + ".jpg";
+            try {
+                saveImage(image, path);
+            } catch (Exception e) {
+                Log.d(TAG, "saveImage exception:" + e.getMessage());
             }
-        });
+        }
     }
 
     private void saveImage(Image image, String path) throws Exception {
-        int width = 720;
-        int height = 1280;
+        int width = image.getWidth();
+        int height = image.getHeight();
         Image.Plane[] planes = image.getPlanes();
-        ByteBuffer buffer = planes[0].getBuffer();
+        Buffer buffer = planes[0].getBuffer().rewind();
+
         int pixelStride = planes[0].getPixelStride();
         int rowStride = planes[0].getRowStride();
         int rowPadding = rowStride - pixelStride * width;
         Bitmap bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
         bitmap.copyPixelsFromBuffer(buffer);
 
+        /*
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        bitmap.copyPixelsFromBuffer(buffer);
+        */
+
+
         FileOutputStream fos = new FileOutputStream(path);
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
         fos.flush();
         fos.close();
+        bitmap.recycle();
 
         Log.d(TAG, "saveImage success:" + path);
-        mImageCount.incrementAndGet();
-
-        if (mImageCount.get() >= 10) {
-            quit();
-        }
     }
 
     private void muxVideo(int index, MediaCodec.BufferInfo buffer) {
