@@ -36,14 +36,12 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                groupId = GROUP
-                artifactId = ARTIFACT
-                version = VName
-            }
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = GROUP
+            artifactId = ARTIFACT
+            version = VName
         }
     }
 }
