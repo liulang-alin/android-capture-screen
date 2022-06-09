@@ -75,6 +75,14 @@ public class ScreenRecorder {
     private LinkedList<MediaCodec.BufferInfo> mPendingAudioEncoderBufferInfos = new LinkedList<>();
     private LinkedList<MediaCodec.BufferInfo> mPendingVideoEncoderBufferInfos = new LinkedList<>();
 
+    private OnRecordScreenListener mRecordListener;
+
+    public interface OnRecordScreenListener {
+        void onSuccess(int type, String path);
+
+        void onError(int code, String message);
+    }
+
     /**
      * @param display for {@link VirtualDisplay#setSurface(Surface)}
      * @param dstPath saving path
@@ -111,10 +119,11 @@ public class ScreenRecorder {
         mWorker = new HandlerThread(TAG);
         mWorker.start();
         mHandler = new CallbackHandler(mWorker.getLooper());
-        mHandler.sendEmptyMessage(MSG_START);
+//        mHandler.sendEmptyMessage(MSG_START);
     }
 
-    public void requestCapture() {
+    public void requestCapture(OnRecordScreenListener listener) {
+        mRecordListener = listener;
         mHandler.sendEmptyMessage(MSG_START);
         mSaveCaptureFile.set(true);
     }
@@ -159,6 +168,9 @@ public class ScreenRecorder {
                         break;
                     } catch (Exception e) {
                         msg.obj = e;
+                        if (mRecordListener != null) {
+                            mRecordListener.onError(100, e.getMessage());
+                        }
                     }
                 case MSG_STOP:
                 case MSG_ERROR:
@@ -247,6 +259,7 @@ public class ScreenRecorder {
             if (mSaveCaptureFile.get()) {
                 Log.d(TAG, "saveImage begin.");
                 saveImage(reader1);
+                mRecordListener = null;
                 stopCapture(reader1);
             }
         }, null);
@@ -258,8 +271,14 @@ public class ScreenRecorder {
             String path = "/sdcard/" + System.currentTimeMillis() + ".jpg";
             try {
                 saveImage(image, path);
+                if (mRecordListener != null) {
+                    mRecordListener.onSuccess(0, path);
+                }
             } catch (Exception e) {
                 Log.d(TAG, "saveImage exception:" + e.getMessage());
+                if (mRecordListener != null) {
+                    mRecordListener.onError(200, e.getMessage());
+                }
             }
         }
     }

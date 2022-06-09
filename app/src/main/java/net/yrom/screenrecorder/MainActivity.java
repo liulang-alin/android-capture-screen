@@ -152,15 +152,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_MEDIA_PROJECTION) {
-            // NOTE: Should pass this result data into a Service to run ScreenRecorder.
-            // The following codes are merely exemplary.
-
             MediaProjection mediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
             if (mediaProjection == null) {
                 Log.e(TAG, "media projection is null");
                 return;
             }
-
             mMediaProjection = mediaProjection;
             mMediaProjection.registerCallback(mProjectionCallback, new Handler());
             startCapturing(mediaProjection);
@@ -429,14 +425,7 @@ public class MainActivity extends Activity {
             onOrientationChanged(position, view.getSelectedItem());
         });
 
-        findViewById(R.id.btn_capture).setOnClickListener(v -> {
-            if (mRecorder == null) {
-                Toast.makeText(v.getContext(), "Start Record first !", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            mRecorder.requestCapture();
-        });
+        findViewById(R.id.btn_demo).setOnClickListener(v -> startActivity(new Intent(v.getContext(), ScreenDemoActivity.class)));
     }
 
     private void onButtonClick(View v) {
