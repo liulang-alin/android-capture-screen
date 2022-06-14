@@ -2,6 +2,7 @@ package com.mzp.capturesdk;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Fragment;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Point;
@@ -9,8 +10,6 @@ import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
-import android.support.v4.app.Fragment;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
 public final class CaptureSdkImpl implements CaptureSdk {
@@ -28,13 +27,13 @@ public final class CaptureSdkImpl implements CaptureSdk {
     }
 
     @Override
-    public void start(AppCompatActivity activity, OnCaptureStartListener listener) {
+    public void start(Activity activity, OnCaptureStartListener listener) {
         if (mConfig == null) {
             throw new RuntimeException("Please invoke init() first !");
         }
 
         final int REQUEST_CAPTURE = 1000;
-        activity.getSupportFragmentManager().beginTransaction()
+        activity.getFragmentManager().beginTransaction()
                 .add(android.R.id.content, HiddenFragment.newInstance(REQUEST_CAPTURE, new OnCapturePermissionListener() {
                     @Override
                     public void onGranted(int resultCode, Intent data) {
@@ -222,8 +221,8 @@ public final class CaptureSdkImpl implements CaptureSdk {
             }
 
             try {
-                requireActivity()
-                        .getSupportFragmentManager()
+                getActivity()
+                        .getFragmentManager()
                         .beginTransaction()
                         .remove(this)
                         .commit();

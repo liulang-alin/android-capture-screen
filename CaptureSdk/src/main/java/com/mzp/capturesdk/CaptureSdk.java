@@ -1,7 +1,7 @@
 package com.mzp.capturesdk;
 
+import android.app.Activity;
 import android.content.Intent;
-import android.support.v7.app.AppCompatActivity;
 
 public interface CaptureSdk {
     enum CaptureSource {
@@ -43,7 +43,7 @@ public interface CaptureSdk {
 
     void init(CaptureImageConfig config);
 
-    void start(AppCompatActivity activity, OnCaptureStartListener listener);
+    void start(Activity activity, OnCaptureStartListener listener);
 
     void destroy();
 
