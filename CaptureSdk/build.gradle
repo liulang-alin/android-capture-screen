@@ -1,5 +1,6 @@
 apply plugin: 'com.android.library'
-apply plugin: 'maven-publish'
+apply plugin: 'com.novoda.bintray-release'
+apply plugin: 'maven'
 
 def GROUP = "com.class100.screencapture"
 def ARTIFACT = "ScreenCapture"
@@ -25,6 +26,15 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    publish {
+        userOrg = "zhangkaric"
+        groupId = GROUP
+        artifactId = ARTIFACT
+        publishVersion = VName
+        desc = "android capture screen sdk"
+        website = "http://github.com/zhangkari/android-capture-screen"
     }
 }
 
