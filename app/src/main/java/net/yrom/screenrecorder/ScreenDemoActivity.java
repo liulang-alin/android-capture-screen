@@ -44,6 +44,7 @@ public class ScreenDemoActivity extends AppCompatActivity {
             }
         }));
 
+        String path = getExternalFilesDir(null).getAbsolutePath();
         findViewById(R.id.btn_capture).setOnClickListener(v -> sdk.requestCapture(new CaptureSdk.OnCaptureResultListener() {
             @Override
             public void onCaptureSuccess(CaptureSdk.CaptureSource source, CaptureSdk.LocalFormat format, String path) {
@@ -54,7 +55,7 @@ public class ScreenDemoActivity extends AppCompatActivity {
             public void onCaptureError(int code, String message) {
                 Toast.makeText(v.getContext(), "capture error:" + message, Toast.LENGTH_SHORT).show();
             }
-        }));
+        }, path));
 
         findViewById(R.id.btn_stop).setOnClickListener(v -> sdk.destroy());
     }

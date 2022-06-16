@@ -65,6 +65,7 @@ public class ScreenRecorder {
 
     private HandlerThread mWorker;
     private CallbackHandler mHandler;
+    private String mCaptureFilePath;
     private AtomicBoolean mSaveCaptureFile = new AtomicBoolean(false);
 
     private CaptureImageConfig mImageConfig;
@@ -122,7 +123,8 @@ public class ScreenRecorder {
 //        mHandler.sendEmptyMessage(MSG_START);
     }
 
-    public void requestCapture(OnRecordScreenListener listener) {
+    public void requestCapture(String path, OnRecordScreenListener listener) {
+        mCaptureFilePath = path;
         mRecordListener = listener;
         mHandler.sendEmptyMessage(MSG_START);
         mSaveCaptureFile.set(true);
@@ -265,10 +267,18 @@ public class ScreenRecorder {
         }, null);
     }
 
+    private String obtainImagePath() {
+        if (mCaptureFilePath.endsWith("/")) {
+            return mCaptureFilePath + System.currentTimeMillis() + ".jpg";
+        } else {
+            return mCaptureFilePath + "/" + System.currentTimeMillis() + ".jpg";
+        }
+    }
+
     private void saveImage(ImageReader reader) {
         Image image = reader.acquireLatestImage();
         if (image != null) {
-            String path = "/sdcard/" + System.currentTimeMillis() + ".jpg";
+            String path = obtainImagePath();
             try {
                 saveImage(image, path);
                 if (mRecordListener != null) {
@@ -294,12 +304,6 @@ public class ScreenRecorder {
         int rowPadding = rowStride - pixelStride * width;
         Bitmap bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
         bitmap.copyPixelsFromBuffer(buffer);
-
-        /*
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bitmap.copyPixelsFromBuffer(buffer);
-        */
-
 
         FileOutputStream fos = new FileOutputStream(path);
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);

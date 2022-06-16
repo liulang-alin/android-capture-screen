@@ -47,11 +47,11 @@ public interface CaptureSdk {
 
     void destroy();
 
-    void requestCapture(CaptureSource source, UploadCategory category, LocalFormat format, OnCaptureResultListener listener);
+    void requestCapture(CaptureSource source, UploadCategory category, LocalFormat format, String path, OnCaptureResultListener listener);
 
-    void requestCapture(CaptureSource source, LocalFormat format, OnCaptureResultListener listener);
+    void requestCapture(CaptureSource source, LocalFormat format, String path, OnCaptureResultListener listener);
 
-    void requestCapture(LocalFormat format, OnCaptureResultListener listener);
+    void requestCapture(LocalFormat format, String path, OnCaptureResultListener listener);
 
-    void requestCapture(OnCaptureResultListener listener);
+    void requestCapture(OnCaptureResultListener listener, String path);
 }

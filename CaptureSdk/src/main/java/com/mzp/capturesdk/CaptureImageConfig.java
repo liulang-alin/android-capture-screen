@@ -1,6 +1,8 @@
 package com.mzp.capturesdk;
 
-public class CaptureImageConfig {
+import java.io.Serializable;
+
+public class CaptureImageConfig implements Serializable {
     public final int width;
     public final int height;
 

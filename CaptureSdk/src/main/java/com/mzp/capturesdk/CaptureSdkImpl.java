@@ -3,23 +3,36 @@ package com.mzp.capturesdk;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Fragment;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 public final class CaptureSdkImpl implements CaptureSdk {
 
     private static final String TAG = "CaptureSdkImpl";
 
-    private ScreenRecorder mRecorder;
-    private MediaProjection mMediaProjection;
-    private VirtualDisplay mVirtualDisplay;
+    private static final int CMD_NOP = 0x00;
+    private static final int CMD_START = 0x10;
+    private static final int CMD_CAPTURE = 0x20;
+    private static final int CMD_STOP = 0x30;
+
     private CaptureImageConfig mConfig;
+    private Context appContext;
 
     @Override
     public void init(CaptureImageConfig config) {
@@ -32,23 +45,14 @@ public final class CaptureSdkImpl implements CaptureSdk {
             throw new RuntimeException("Please invoke init() first !");
         }
 
+        appContext = activity.getApplicationContext();
+
         final int REQUEST_CAPTURE = 1000;
         activity.getFragmentManager().beginTransaction()
                 .add(android.R.id.content, HiddenFragment.newInstance(REQUEST_CAPTURE, new OnCapturePermissionListener() {
                     @Override
                     public void onGranted(int resultCode, Intent data) {
-                        MediaProjectionManager mgr = (MediaProjectionManager) activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                        MediaProjection mediaProjection = mgr.getMediaProjection(resultCode, data);
-                        if (listener != null) {
-                            if (mediaProjection != null) {
-                                listener.onSuccess();
-                            } else {
-                                listener.onFailed(500, "初始化截屏失败");
-                            }
-                        }
-                        mMediaProjection = mediaProjection;
-                        mRecorder = newRecorder(mMediaProjection, mConfig);
-                        startRecorder();
+                        ExamService.requestStart(appContext, resultCode, data, mConfig);
                     }
 
                     @Override
@@ -63,16 +67,19 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
     @Override
     public void destroy() {
-        stopRecorder();
+
     }
 
     @Override
-    public void requestCapture(CaptureSource source, UploadCategory category, LocalFormat format, OnCaptureResultListener listener) {
+    public void requestCapture(CaptureSource source, UploadCategory category, LocalFormat format, String path, OnCaptureResultListener listener) {
         checkParameters(source, category, format);
         if (listener == null) {
             return;
         }
 
+        ExamService.requestCapture(appContext, path);
+
+        /*
         mRecorder.requestCapture(new ScreenRecorder.OnRecordScreenListener() {
             @Override
             public void onSuccess(int type, String path) {
@@ -84,21 +91,23 @@ public final class CaptureSdkImpl implements CaptureSdk {
                 listener.onCaptureError(code, message);
             }
         });
+
+         */
     }
 
     @Override
-    public void requestCapture(CaptureSource source, LocalFormat format, OnCaptureResultListener listener) {
-        requestCapture(source, UploadCategory.File, format, listener);
+    public void requestCapture(CaptureSource source, LocalFormat format, String path, OnCaptureResultListener listener) {
+        requestCapture(source, UploadCategory.File, format, path, listener);
     }
 
     @Override
-    public void requestCapture(LocalFormat format, OnCaptureResultListener listener) {
-        requestCapture(CaptureSource.Screen, format, listener);
+    public void requestCapture(LocalFormat format, String path, OnCaptureResultListener listener) {
+        requestCapture(CaptureSource.Screen, format, path, listener);
     }
 
     @Override
-    public void requestCapture(OnCaptureResultListener listener) {
-        requestCapture(LocalFormat.JPG, listener);
+    public void requestCapture(OnCaptureResultListener listener, String path) {
+        requestCapture(LocalFormat.JPG, path, listener);
     }
 
     private void checkParameters(CaptureSource source, UploadCategory category, LocalFormat format) {
@@ -115,71 +124,6 @@ public final class CaptureSdkImpl implements CaptureSdk {
         }
     }
 
-    private ScreenRecorder newRecorder(MediaProjection mediaProjection, CaptureImageConfig config) {
-        final VirtualDisplay display = getOrCreateVirtualDisplay(mediaProjection, config);
-        ScreenRecorder r = new ScreenRecorder(config, display);
-        r.setCallback(new ScreenRecorder.Callback() {
-            @Override
-            public void onStop(Throwable error) {
-                stopRecorder();
-            }
-
-            @Override
-            public void onStart() {
-            }
-
-            @Override
-            public void onRecording(long presentationTimeUs) {
-                Log.d(TAG, "onRecording");
-            }
-        });
-        return r;
-    }
-
-    private VirtualDisplay getOrCreateVirtualDisplay(MediaProjection mediaProjection, VideoEncodeConfig config) {
-        if (mVirtualDisplay == null) {
-            mVirtualDisplay = mediaProjection.createVirtualDisplay("ScreenRecorder-display0",
-                    config.width, config.height, 1 /*dpi*/,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
-                    null /*surface*/, null, null);
-        } else {
-            // resize if size not matched
-            Point size = new Point();
-            mVirtualDisplay.getDisplay().getSize(size);
-            if (size.x != config.width || size.y != config.height) {
-                mVirtualDisplay.resize(config.width, config.height, 1);
-            }
-        }
-        return mVirtualDisplay;
-    }
-
-    private VirtualDisplay getOrCreateVirtualDisplay(MediaProjection mediaProjection, CaptureImageConfig config) {
-        if (mVirtualDisplay == null) {
-            mVirtualDisplay = mediaProjection.createVirtualDisplay("ScreenRecorder-display0",
-                    config.width, config.height, 1 /*dpi*/,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
-                    null /*surface*/, null, null);
-        } else {
-            // resize if size not matched
-            Point size = new Point();
-            mVirtualDisplay.getDisplay().getSize(size);
-            if (size.x != config.width || size.y != config.height) {
-                mVirtualDisplay.resize(config.width, config.height, 1);
-            }
-        }
-        return mVirtualDisplay;
-    }
-
-    private void startRecorder() {
-        mRecorder.start();
-    }
-
-    private void stopRecorder() {
-        if (mRecorder != null) {
-            mRecorder.quit();
-        }
-        mRecorder = null;
-    }
 
     @SuppressLint("ValidFragment")
     public static class HiddenFragment extends Fragment {
@@ -229,6 +173,181 @@ public final class CaptureSdkImpl implements CaptureSdk {
             } catch (Exception e) {
                 Log.d(TAG, "onActivityResult:" + e.getMessage());
             }
+        }
+    }
+
+    public static class ExamService extends Service {
+        private static final String TAG = "ExamService";
+
+        private ScreenRecorder mRecorder;
+        private VirtualDisplay mVirtualDisplay;
+
+        public static void requestStart(Context context, int resultCode, Intent resultData, CaptureImageConfig config) {
+            Intent intent = new Intent(context, ExamService.class);
+            intent.putExtra("command", CMD_START);
+            intent.putExtra("resultCode", resultCode);
+            intent.putExtra("resultData", resultData);
+            intent.putExtra("config", config);
+            context.startService(intent);
+        }
+
+        public static void requestCapture(Context context, String path) {
+            Intent intent = new Intent(context, ExamService.class);
+            intent.putExtra("command", CMD_CAPTURE);
+            intent.putExtra("path", path);
+            context.startService(intent);
+        }
+
+        @Override
+        public void onCreate() {
+            Log.d(TAG, "onCreate");
+            super.onCreate();
+        }
+
+        @Nullable
+        @Override
+        public IBinder onBind(Intent intent) {
+            return null;
+        }
+
+        @Override
+        public int onStartCommand(Intent intent, int flags, int startId) {
+            Log.d(TAG, "onStartCommand");
+            int cmd = intent.getIntExtra("command", 0);
+            Log.d(TAG, "onStartCommand command = " + cmd);
+            switch (cmd) {
+                case CMD_NOP:
+                    break;
+
+                case CMD_START:
+                    int resultCode = intent.getIntExtra("resultCode", -1);
+                    Intent resultData = intent.getParcelableExtra("resultData");
+                    sendNotification();
+                    MediaProjectionManager mgr = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                    MediaProjection mMediaProjection = mgr.getMediaProjection(resultCode, resultData);
+                    CaptureImageConfig config = (CaptureImageConfig) intent.getSerializableExtra("config");
+                    mRecorder = newRecorder(mMediaProjection, config);
+                    startRecorder();
+                    break;
+
+                case CMD_CAPTURE:
+                    String path = intent.getStringExtra("path");
+                    Log.d(TAG, "capture path = " + path);
+                    mRecorder.requestCapture(path, new ScreenRecorder.OnRecordScreenListener() {
+                        @Override
+                        public void onSuccess(int type, String path) {
+//                            listener.onCaptureSuccess(CaptureSource.Screen, LocalFormat.JPG, path);
+                            Log.d(TAG, "capture success: path = " + path);
+                        }
+
+                        @Override
+                        public void onError(int code, String message) {
+//                            listener.onCaptureError(code, message);
+                            Log.d(TAG, "capture error: message = " + message);
+                        }
+                    });
+                    break;
+
+                case CMD_STOP:
+                    stopRecorder();
+                    break;
+            }
+            return super.onStartCommand(intent, flags, startId);
+        }
+
+        @Override
+        public void onDestroy() {
+            Log.d(TAG, "onDestroy");
+            stopRecorder();
+            super.onDestroy();
+        }
+
+        private void sendNotification() {
+            Log.d(TAG, "sendNotification");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent intent = new Intent(this, ExamService.class);
+                PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, 0);
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "100")
+                        .setSmallIcon(R.drawable.ic_stat_recording)
+                        .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_stat_recording))
+                        .setContentTitle("考试服务")
+                        .setContentText("考试服务运行中")
+                        .setTicker("ticker")
+                        .setContentIntent(pIntent);
+
+                Notification notification = builder.build();
+                NotificationChannel channel = new NotificationChannel("100", "c_name", NotificationManager.IMPORTANCE_DEFAULT);
+                channel.setDescription("考试服务，请不要关闭");
+                NotificationManager mgr = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                mgr.createNotificationChannel(channel);
+                startForeground(200, notification);
+            }
+        }
+
+        private ScreenRecorder newRecorder(MediaProjection mediaProjection, CaptureImageConfig config) {
+            final VirtualDisplay display = getOrCreateVirtualDisplay(mediaProjection, config);
+            ScreenRecorder r = new ScreenRecorder(config, display);
+            r.setCallback(new ScreenRecorder.Callback() {
+                @Override
+                public void onStop(Throwable error) {
+                    stopRecorder();
+                }
+
+                @Override
+                public void onStart() {
+                }
+
+                @Override
+                public void onRecording(long presentationTimeUs) {
+                    Log.d(TAG, "onRecording");
+                }
+            });
+            return r;
+        }
+
+        private VirtualDisplay getOrCreateVirtualDisplay(MediaProjection mediaProjection, VideoEncodeConfig config) {
+            if (mVirtualDisplay == null) {
+                mVirtualDisplay = mediaProjection.createVirtualDisplay("ScreenRecorder-display0",
+                        config.width, config.height, 1 /*dpi*/,
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
+                        null /*surface*/, null, null);
+            } else {
+                // resize if size not matched
+                Point size = new Point();
+                mVirtualDisplay.getDisplay().getSize(size);
+                if (size.x != config.width || size.y != config.height) {
+                    mVirtualDisplay.resize(config.width, config.height, 1);
+                }
+            }
+            return mVirtualDisplay;
+        }
+
+        private VirtualDisplay getOrCreateVirtualDisplay(MediaProjection mediaProjection, CaptureImageConfig config) {
+            if (mVirtualDisplay == null) {
+                mVirtualDisplay = mediaProjection.createVirtualDisplay("ScreenRecorder-display0",
+                        config.width, config.height, 1 /*dpi*/,
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
+                        null /*surface*/, null, null);
+            } else {
+                // resize if size not matched
+                Point size = new Point();
+                mVirtualDisplay.getDisplay().getSize(size);
+                if (size.x != config.width || size.y != config.height) {
+                    mVirtualDisplay.resize(config.width, config.height, 1);
+                }
+            }
+            return mVirtualDisplay;
+        }
+
+        private void startRecorder() {
+            mRecorder.start();
+        }
+
+        private void stopRecorder() {
+            if (mRecorder != null) {
+                mRecorder.quit();
+            }
+            mRecorder = null;
         }
     }
 }
