@@ -22,6 +22,10 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
 public final class CaptureSdkImpl implements CaptureSdk {
 
     private static final String TAG = "CaptureSdkImpl";
@@ -33,10 +37,12 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
     private CaptureImageConfig mConfig;
     private Context appContext;
+    private OnCaptureResultListener captureResultListener;
 
     @Override
     public void init(CaptureImageConfig config) {
         mConfig = config;
+        EventBus.getDefault().register(this);
     }
 
     @Override
@@ -67,7 +73,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
     @Override
     public void destroy() {
-
+        EventBus.getDefault().unregister(this);
     }
 
     @Override
@@ -76,23 +82,21 @@ public final class CaptureSdkImpl implements CaptureSdk {
         if (listener == null) {
             return;
         }
-
+        captureResultListener = listener;
         ExamService.requestCapture(appContext, path);
+    }
 
-        /*
-        mRecorder.requestCapture(new ScreenRecorder.OnRecordScreenListener() {
-            @Override
-            public void onSuccess(int type, String path) {
-                listener.onCaptureSuccess(CaptureSource.Screen, LocalFormat.JPG, path);
+    @Subscribe(threadMode = ThreadMode.POSTING)
+    public void onSaveFileEvent(SaveFileEvent event) {
+        Log.d(TAG, "onSaveFileEvent() event:" + event.toString());
+        if (captureResultListener != null) {
+            if (event.success) {
+                captureResultListener.onCaptureSuccess(CaptureSource.Screen, LocalFormat.JPG, event.path);
+            } else {
+                captureResultListener.onCaptureError(event.code, event.message);
             }
-
-            @Override
-            public void onError(int code, String message) {
-                listener.onCaptureError(code, message);
-            }
-        });
-
-         */
+        }
+        captureResultListener = null;
     }
 
     @Override
@@ -236,14 +240,14 @@ public final class CaptureSdkImpl implements CaptureSdk {
                     mRecorder.requestCapture(path, new ScreenRecorder.OnRecordScreenListener() {
                         @Override
                         public void onSuccess(int type, String path) {
-//                            listener.onCaptureSuccess(CaptureSource.Screen, LocalFormat.JPG, path);
                             Log.d(TAG, "capture success: path = " + path);
+                            EventBus.getDefault().post(new SaveFileEvent(path));
                         }
 
                         @Override
                         public void onError(int code, String message) {
-//                            listener.onCaptureError(code, message);
                             Log.d(TAG, "capture error: message = " + message);
+                            EventBus.getDefault().post(new SaveFileEvent(code, message));
                         }
                     });
                     break;
@@ -348,6 +352,32 @@ public final class CaptureSdkImpl implements CaptureSdk {
                 mRecorder.quit();
             }
             mRecorder = null;
+        }
+    }
+
+    public static class SaveFileEvent {
+        private final boolean success;
+        private final String path;
+        private final int code;
+        private final String message;
+
+        public SaveFileEvent(int code, String message) {
+            success = false;
+            path = null;
+            this.code = code;
+            this.message = message;
+        }
+
+        public SaveFileEvent(String path) {
+            success = true;
+            this.path = path;
+            code = 0;
+            message = null;
+        }
+
+        @Override
+        public String toString() {
+            return "success:" + success + ", path:" + path + ",code:" + code + ",message:" + message;
         }
     }
 }
