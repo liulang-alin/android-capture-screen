@@ -24,6 +24,7 @@ import android.util.Log;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 public final class CaptureSdkImpl implements CaptureSdk {
 
@@ -85,7 +86,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
         ExamService.requestCapture(appContext, path);
     }
 
-    @Subscribe
+    @Subscribe(threadMode = ThreadMode.MAIN)
     public void onSaveFileEvent(SaveFileEvent event) {
         Log.d(TAG, "onSaveFileEvent() event:" + event.toString());
         if (captureResultListener != null) {
