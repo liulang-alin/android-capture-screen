@@ -22,8 +22,8 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
+//import org.greenrobot.eventbus.EventBus;
+//import org.greenrobot.eventbus.Subscribe;
 
 public final class CaptureSdkImpl implements CaptureSdk {
 
@@ -41,7 +41,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
     @Override
     public void init(CaptureImageConfig config) {
         mConfig = config;
-        EventBus.getDefault().register(this);
+//        EventBus.getDefault().register(this);
     }
 
     @Override
@@ -72,7 +72,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
     @Override
     public void destroy() {
-        EventBus.getDefault().unregister(this);
+//        EventBus.getDefault().unregister(this);
     }
 
     @Override
@@ -85,7 +85,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
         ExamService.requestCapture(appContext, path);
     }
 
-    @Subscribe
+//    @Subscribe
     public void onSaveFileEvent(SaveFileEvent event) {
         Log.d(TAG, "onSaveFileEvent() event:" + event.toString());
         if (captureResultListener != null) {
@@ -240,13 +240,13 @@ public final class CaptureSdkImpl implements CaptureSdk {
                         @Override
                         public void onSuccess(int type, String path) {
                             Log.d(TAG, "capture success: path = " + path);
-                            EventBus.getDefault().post(new SaveFileEvent(path));
+//                            EventBus.getDefault().post(new SaveFileEvent(path));
                         }
 
                         @Override
                         public void onError(int code, String message) {
                             Log.d(TAG, "capture error: message = " + message);
-                            EventBus.getDefault().post(new SaveFileEvent(code, message));
+//                            EventBus.getDefault().post(new SaveFileEvent(code, message));
                         }
                     });
                     break;
