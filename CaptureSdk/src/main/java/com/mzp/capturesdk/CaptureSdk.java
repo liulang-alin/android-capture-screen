@@ -45,6 +45,8 @@ public interface CaptureSdk {
 
     void start(Activity activity, OnCaptureStartListener listener);
 
+    void stop();
+
     void destroy();
 
     void requestCapture(CaptureSource source, UploadCategory category, LocalFormat format, String path, OnCaptureResultListener listener);

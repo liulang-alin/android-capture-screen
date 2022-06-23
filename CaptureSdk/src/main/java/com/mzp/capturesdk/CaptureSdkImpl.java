@@ -42,7 +42,6 @@ public final class CaptureSdkImpl implements CaptureSdk {
     @Override
     public void init(CaptureImageConfig config) {
         mConfig = config;
-        EventBus.getDefault().register(this);
     }
 
     @Override
@@ -50,7 +49,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
         if (mConfig == null) {
             throw new RuntimeException("Please invoke init() first !");
         }
-
+        EventBus.getDefault().register(this);
         appContext = activity.getApplicationContext();
 
         final int REQUEST_CAPTURE = 1000;
@@ -72,8 +71,12 @@ public final class CaptureSdkImpl implements CaptureSdk {
     }
 
     @Override
-    public void destroy() {
+    public void stop() {
         EventBus.getDefault().unregister(this);
+    }
+
+    @Override
+    public void destroy() {
     }
 
     @Override
