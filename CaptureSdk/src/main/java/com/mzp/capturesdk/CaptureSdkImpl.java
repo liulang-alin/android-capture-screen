@@ -49,7 +49,9 @@ public final class CaptureSdkImpl implements CaptureSdk {
         if (mConfig == null) {
             throw new RuntimeException("Please invoke init() first !");
         }
-        EventBus.getDefault().register(this);
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this);
+        }
         appContext = activity.getApplicationContext();
 
         final int REQUEST_CAPTURE = 1000;
