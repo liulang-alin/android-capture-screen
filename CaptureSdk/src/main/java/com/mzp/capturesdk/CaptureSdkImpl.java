@@ -38,6 +38,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
     private CaptureImageConfig mConfig;
     private Context appContext;
     private OnCaptureResultListener captureResultListener;
+    private OnCaptureStartListener startServiceListener;
 
     @Override
     public void init(CaptureImageConfig config) {
@@ -46,9 +47,20 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
     @Override
     public void start(Activity activity, OnCaptureStartListener listener) {
-        if (mConfig == null) {
-            throw new RuntimeException("Please invoke init() first !");
+        if (activity == null) {
+            if (listener != null) {
+                listener.onFailed(400, "activity is NULL");
+            }
+            return;
         }
+
+        if (mConfig == null) {
+            if (listener != null) {
+                listener.onFailed(500, "Not invoke init()");
+            }
+            return;
+        }
+
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }
@@ -59,11 +71,14 @@ public final class CaptureSdkImpl implements CaptureSdk {
                 .add(android.R.id.content, HiddenFragment.newInstance(REQUEST_CAPTURE, new OnCapturePermissionListener() {
                     @Override
                     public void onGranted(int resultCode, Intent data) {
+                        Log.d(TAG, "onGranted");
+                        startServiceListener = listener;
                         ExamService.requestStart(appContext, resultCode, data, mConfig);
                     }
 
                     @Override
                     public void onDenied() {
+                        Log.d(TAG, "onDenied");
                         if (listener != null) {
                             listener.onFailed(400, "截屏权限未授权");
                         }
@@ -102,6 +117,15 @@ public final class CaptureSdkImpl implements CaptureSdk {
             }
         }
         captureResultListener = null;
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onStartServiceSuccess(StartServiceSuccessEvent event) {
+        Log.d(TAG, "onStartServiceSuccess() event:" + event.toString());
+        if (startServiceListener != null) {
+            startServiceListener.onSuccess();
+        }
+        startServiceListener = null;
     }
 
     @Override
@@ -237,6 +261,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
                     CaptureImageConfig config = (CaptureImageConfig) intent.getSerializableExtra("config");
                     mRecorder = newRecorder(mMediaProjection, config);
                     startRecorder();
+                    EventBus.getDefault().post(new StartServiceSuccessEvent());
                     break;
 
                 case CMD_CAPTURE:
@@ -384,5 +409,9 @@ public final class CaptureSdkImpl implements CaptureSdk {
         public String toString() {
             return "success:" + success + ", path:" + path + ",code:" + code + ",message:" + message;
         }
+    }
+
+    public static class StartServiceSuccessEvent {
+
     }
 }
