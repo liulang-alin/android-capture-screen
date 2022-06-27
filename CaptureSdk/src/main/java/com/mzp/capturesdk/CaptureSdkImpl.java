@@ -300,7 +300,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
             Log.d(TAG, "sendNotification");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Intent intent = new Intent(this, ExamService.class);
-                PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, 0);
+                PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "100")
                         .setSmallIcon(R.drawable.ic_stat_recording)
                         .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_stat_recording))
