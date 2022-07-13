@@ -243,12 +243,7 @@ public class ScreenRecorder {
         Log.d(TAG, "stopCapture");
         mSaveCaptureFile.set(false);
         if (reader != null) {
-//            reader.close();
-        }
-
-        Surface surface = mVirtualDisplay.getSurface();
-        if (surface != null) {
-            surface.release();
+            reader.close();
         }
     }
 
