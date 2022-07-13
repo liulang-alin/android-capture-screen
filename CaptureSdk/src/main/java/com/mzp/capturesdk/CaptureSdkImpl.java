@@ -94,6 +94,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
     @Override
     public void destroy() {
+        ExamService.requestStop(appContext);
     }
 
     @Override
@@ -231,6 +232,12 @@ public final class CaptureSdkImpl implements CaptureSdk {
             context.startService(intent);
         }
 
+        public static void requestStop(Context context) {
+            Intent intent = new Intent(context, ExamService.class);
+            intent.putExtra("command", CMD_STOP);
+            context.startService(intent);
+        }
+
         @Override
         public void onCreate() {
             Log.d(TAG, "onCreate");
@@ -284,6 +291,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
                 case CMD_STOP:
                     stopRecorder();
+                    stopSelf();
                     break;
             }
             return super.onStartCommand(intent, flags, startId);
