@@ -215,6 +215,7 @@ public final class CaptureSdkImpl implements CaptureSdk {
 
         private ScreenRecorder mRecorder;
         private VirtualDisplay mVirtualDisplay;
+        private MediaProjection mMediaProjection;
 
         public static void requestStart(Context context, int resultCode, Intent resultData, CaptureImageConfig config) {
             Intent intent = new Intent(context, ExamService.class);
@@ -263,8 +264,10 @@ public final class CaptureSdkImpl implements CaptureSdk {
                     int resultCode = intent.getIntExtra("resultCode", -1);
                     Intent resultData = intent.getParcelableExtra("resultData");
                     sendNotification();
-                    MediaProjectionManager mgr = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                    MediaProjection mMediaProjection = mgr.getMediaProjection(resultCode, resultData);
+                    if(mMediaProjection==null){
+                        MediaProjectionManager mgr = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                        mMediaProjection = mgr.getMediaProjection(resultCode, resultData);
+                    }
                     CaptureImageConfig config = (CaptureImageConfig) intent.getSerializableExtra("config");
                     mRecorder = newRecorder(mMediaProjection, config);
                     startRecorder();
@@ -301,6 +304,12 @@ public final class CaptureSdkImpl implements CaptureSdk {
         public void onDestroy() {
             Log.d(TAG, "onDestroy");
             stopRecorder();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                stopForeground(true);
+            }
+            if(mMediaProjection!=null){
+                mMediaProjection.stop();
+            }
             super.onDestroy();
         }
 

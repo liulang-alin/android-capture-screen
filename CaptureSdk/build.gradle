@@ -1,6 +1,8 @@
 apply plugin: 'com.android.library'
-apply plugin: 'com.novoda.bintray-release'
-apply plugin: 'maven'
+//apply plugin: 'com.novoda.bintray-release'
+//apply plugin: 'maven'
+apply plugin: 'maven-publish'
+apply plugin: 'com.github.dcendents.android-maven'
 
 def GROUP = "com.class100.screencapture"
 def ARTIFACT = "ScreenCapture"
@@ -28,14 +30,14 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    publish {
-        userOrg = "zhangkaric"
-        groupId = GROUP
-        artifactId = ARTIFACT
-        publishVersion = VName
-        desc = "android capture screen sdk"
-        website = "http://github.com/zhangkari/android-capture-screen"
-    }
+//    publish {
+//        userOrg = "zhangkaric"
+//        groupId = GROUP
+//        artifactId = ARTIFACT
+//        publishVersion = VName
+//        desc = "android capture screen sdk"
+//        website = "http://github.com/zhangkari/android-capture-screen"
+//    }
 }
 
 dependencies {
@@ -46,12 +48,12 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = GROUP
-            artifactId = ARTIFACT
-            version = VName
-        }
-    }
-}
+//publishing {
+//    publications {
+//        maven(MavenPublication) {
+//            groupId = GROUP
+//            artifactId = ARTIFACT
+//            version = VName
+//        }
+//    }
+//}
